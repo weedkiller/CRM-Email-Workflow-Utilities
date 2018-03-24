@@ -148,7 +148,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
 
             Entity systemUser = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Guid id2 = Guid.NewGuid();
@@ -229,7 +230,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
 
             Entity systemUser = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Guid id2 = Guid.NewGuid();
@@ -285,12 +287,14 @@ namespace LAT.WorkflowUtilities.Email.Tests
 
             Entity systemUser1 = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Entity systemUser2 = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Guid id2 = Guid.NewGuid();
@@ -334,6 +338,78 @@ namespace LAT.WorkflowUtilities.Email.Tests
         }
 
         [TestMethod]
+        public void EmailQueueMembers_2_Members_1_Disabled_Without_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = true
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership1 = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser1.Id,
+                ["queueid"] = queue.Id
+            };
+
+            Guid id3 = Guid.NewGuid();
+            Entity queueMembership2 = new Entity("queuemembership")
+            {
+                Id = id3,
+                ["queuemembership"] = id3,
+                ["systemuserid"] = systemUser2.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser1, systemUser2, queueMembership1, queueMembership2 });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
         public void EmailQueueMembers_1_Member_With_Same_Owner_0_Existing()
         {
             //Arrange
@@ -349,7 +425,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
 
             Entity systemUser = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Entity queue = new Entity("queue")
@@ -411,7 +488,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
 
             Entity systemUser = new Entity("systemuser")
             {
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
             };
 
             Guid id2 = Guid.NewGuid();

@@ -211,6 +211,12 @@ namespace LAT.WorkflowUtilities.Email
                             AttributeName = "accessmode",
                             Operator = ConditionOperator.NotIn,
                             Values = { 3, 4 }
+                        },
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
                         }
                     }
                 }

@@ -94,9 +94,11 @@ namespace LAT.WorkflowUtilities.Email
             foreach (Entity e in teamMembers.Entities)
             {
                 Entity user = service.Retrieve("systemuser", e.GetAttributeValue<Guid>("systemuserid"),
-                    new ColumnSet("internalemailaddress"));
+                    new ColumnSet("internalemailaddress", "isdisabled"));
 
                 if (string.IsNullOrEmpty(user.GetAttributeValue<string>("internalemailaddress"))) continue;
+                if (user.GetAttributeValue<bool>("isdisabled")) continue;
+
 
                 Entity activityParty = new Entity("activityparty")
                 {

@@ -90,7 +90,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             var inputs = new Dictionary<string, object>
@@ -137,7 +138,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test1@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user2 = new Entity("systemuser")
@@ -145,7 +147,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test2@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             var inputs = new Dictionary<string, object>
@@ -160,6 +163,63 @@ namespace LAT.WorkflowUtilities.Email.Tests
             xrmFakedContext.Initialize(new List<Entity> { email, businessUnit, user1, user2 });
 
             const int expected = 2;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailBusinessUnit>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailBusinessUnit_2_Users_Business_Unit_1_Disabled_With_No_Existing_Users()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity businessUnit = new Entity("businessunit")
+            {
+                Id = Guid.NewGuid()
+            };
+
+            Entity user1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test1@test.com",
+                ["businessunitid"] = businessUnit.Id,
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
+            };
+
+            Entity user2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test2@test.com",
+                ["businessunitid"] = businessUnit.Id,
+                ["accessmode"] = 1,
+                ["isdisabled"] = true
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientBusinessUnit", businessUnit.ToEntityReference() },
+                { "IncludeChildren", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, businessUnit, user1, user2 });
+
+            const int expected = 1;
 
             //Act
             var result = xrmFakedContext.ExecuteCodeActivity<EmailBusinessUnit>(workflowContext, inputs);
@@ -205,7 +265,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test1@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user2 = new Entity("systemuser")
@@ -213,7 +274,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test2@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             var inputs = new Dictionary<string, object>
@@ -273,7 +335,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test1@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user2 = new Entity("systemuser")
@@ -281,7 +344,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test2@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity childBusinessUnit = new Entity("businessunit")
@@ -295,7 +359,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test3@test.com",
                 ["businessunitid"] = childBusinessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             var inputs = new Dictionary<string, object>
@@ -355,7 +420,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test1@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user2 = new Entity("systemuser")
@@ -363,7 +429,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test2@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity childBusinessUnit = new Entity("businessunit")
@@ -377,7 +444,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test3@test.com",
                 ["businessunitid"] = childBusinessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user4 = new Entity("systemuser")
@@ -385,7 +453,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test4@test.com",
                 ["businessunitid"] = childBusinessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             var inputs = new Dictionary<string, object>
@@ -445,7 +514,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test1@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user2 = new Entity("systemuser")
@@ -453,7 +523,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test2@test.com",
                 ["businessunitid"] = businessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity childBusinessUnit = new Entity("businessunit")
@@ -467,7 +538,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test3@test.com",
                 ["businessunitid"] = childBusinessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity user4 = new Entity("systemuser")
@@ -475,7 +547,8 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 Id = Guid.NewGuid(),
                 ["internalemailaddress"] = "test4@test.com",
                 ["businessunitid"] = childBusinessUnit.Id,
-                ["accessmode"] = 1
+                ["accessmode"] = 1,
+                ["isdisabled"] = false
             };
 
             Entity childBusinessUnit2 = new Entity("businessunit")

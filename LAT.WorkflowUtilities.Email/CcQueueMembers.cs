@@ -175,6 +175,17 @@ namespace LAT.WorkflowUtilities.Email
                             }
                         }
                     }
+                },
+                Criteria = new FilterExpression
+                {
+                    Conditions = {
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
+                        }
+                    }
                 }
             };
 

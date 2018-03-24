@@ -143,6 +143,12 @@ namespace LAT.WorkflowUtilities.Email
                         {
                             AttributeName = "internalemailaddress",
                             Operator = ConditionOperator.NotNull
+                        },
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
                         }
                     }
                 }
