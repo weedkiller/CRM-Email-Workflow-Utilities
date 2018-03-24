@@ -351,6 +351,45 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
         }
 
+        [TestMethod]
+        public void InvalidRange()
+        {
+            //Target
+            Entity targetEntity = null;
+
+            //Input parameters
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                { "DeleteSizeMax", 100000},
+                { "DeleteSizeMin", 200000 },
+                { "Extensions" , null },
+                { "AppendNotice", false }
+            };
+
+            //Attachment List
+            Entity attachment1 = new Entity("activitymimeattachment");
+            attachment1["filesize"] = 136000;
+            attachment1["filename"] = "text.docx";
+
+            Entity attachment2 = new Entity("activitymimeattachment");
+            attachment2["filesize"] = 2000000;
+            attachment2["filename"] = "text.docx";
+
+            EntityCollection attachments = new EntityCollection();
+            attachments.Entities.Add(attachment1);
+            attachments.Entities.Add(attachment2);
+
+            //Expected value
+            const int expected = 0;
+
+            //Invoke the workflow
+            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneLessSetup);
+
+            //Test
+            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
+        }
+
         /// <summary>
         /// Modify to mock CRM Organization Service actions
         /// </summary>
