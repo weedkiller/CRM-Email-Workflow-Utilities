@@ -4,11 +4,15 @@ using Microsoft.Xrm.Sdk.Workflow;
 using System;
 using System.Activities;
 using System.Text;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public class DeleteAttachmentByName : CodeActivity
+    public class DeleteAttachmentByName : WorkFlowActivityBase
     {
+        public DeleteAttachmentByName() : base(typeof(DeleteAttachmentByName)) { }
+
         [RequiredArgument]
         [Input("Email With Attachments To Remove")]
         [ReferenceTarget("email")]
@@ -23,53 +27,46 @@ namespace LAT.WorkflowUtilities.Email
         [Default("false")]
         public InArgument<bool> AppendNotice { get; set; }
 
-        [OutputAttribute("Number Of Attachments Deleted")]
+        [Output("Number Of Attachments Deleted")]
         public OutArgument<int> NumberOfAttachmentsDeleted { get; set; }
 
-        protected override void Execute(CodeActivityContext executionContext)
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
         {
-            ITracingService tracer = executionContext.GetExtension<ITracingService>();
-            IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-            IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-            IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-            try
+            EntityReference emailWithAttachments = EmailWithAttachments.Get(context);
+            string fileName = FileName.Get(context);
+            bool appendNotice = AppendNotice.Get(context);
+
+            EntityCollection attachments = GetAttachments(localContext.OrganizationService, emailWithAttachments.Id);
+            if (attachments.Entities.Count == 0) return;
+
+            StringBuilder notice = new StringBuilder();
+            int numberOfAttachmentsDeleted = 0;
+
+            foreach (Entity activityMineAttachment in attachments.Entities)
             {
-                EntityReference emailWithAttachments = EmailWithAttachments.Get(executionContext);
-                string fileName = FileName.Get(executionContext);
-                bool appendNotice = AppendNotice.Get(executionContext);
+                if (!string.Equals(activityMineAttachment.GetAttributeValue<string>("filename"), fileName, StringComparison.CurrentCultureIgnoreCase))
+                    continue;
 
-                EntityCollection attachments = GetAttachments(service, emailWithAttachments.Id);
-                if (attachments.Entities.Count == 0) return;
+                DeleteEmailAttachment(localContext.OrganizationService, activityMineAttachment.Id);
+                numberOfAttachmentsDeleted++;
 
-                StringBuilder notice = new StringBuilder();
-                int numberOfAttachmentsDeleted = 0;
-
-                foreach (Entity activityMineAttachment in attachments.Entities)
-                {
-                    if (!String.Equals(activityMineAttachment.GetAttributeValue<string>("filename"), fileName, StringComparison.CurrentCultureIgnoreCase))
-                        continue;
-
-                    DeleteEmailAttachment(service, activityMineAttachment.Id);
-                    numberOfAttachmentsDeleted++;
-
-                    if (appendNotice)
-                        notice.AppendLine("Deleted Attachment: " + activityMineAttachment.GetAttributeValue<string>("filename") + " " +
-                                          DateTime.Now.ToShortDateString() + "\r\n");
-                }
-
-                if (appendNotice && notice.Length > 0)
-                    UpdateEmail(service, emailWithAttachments.Id, notice.ToString());
-
-                NumberOfAttachmentsDeleted.Set(executionContext, numberOfAttachmentsDeleted);
+                if (appendNotice)
+                    notice.AppendLine("Deleted Attachment: " + activityMineAttachment.GetAttributeValue<string>("filename") + " " +
+                                      DateTime.Now.ToShortDateString() + "\r\n");
             }
-            catch (Exception ex)
-            {
-                tracer.Trace("Exception: {0}", ex.ToString());
-            }
+
+            if (appendNotice && notice.Length > 0)
+                UpdateEmail(localContext.OrganizationService, emailWithAttachments.Id, notice.ToString());
+
+            NumberOfAttachmentsDeleted.Set(context, numberOfAttachmentsDeleted);
         }
 
-        private EntityCollection GetAttachments(IOrganizationService service, Guid emailId)
+        private static EntityCollection GetAttachments(IOrganizationService service, Guid emailId)
         {
             QueryExpression query = new QueryExpression
             {
@@ -77,7 +74,7 @@ namespace LAT.WorkflowUtilities.Email
                 ColumnSet = new ColumnSet("filesize", "filename"),
                 Criteria = new FilterExpression
                 {
-                    Conditions = 
+                    Conditions =
                     {
                         new ConditionExpression
                         {
@@ -92,16 +89,18 @@ namespace LAT.WorkflowUtilities.Email
             return service.RetrieveMultiple(query);
         }
 
-        private void DeleteEmailAttachment(IOrganizationService service, Guid activitymimeattachmentId)
+        private static void DeleteEmailAttachment(IOrganizationService service, Guid activitymimeattachmentId)
         {
             service.Delete("activitymimeattachment", activitymimeattachmentId);
         }
 
-        private void UpdateEmail(IOrganizationService service, Guid emailId, string notice)
+        private static void UpdateEmail(IOrganizationService service, Guid emailId, string notice)
         {
-            Entity note = new Entity("annotation");
-            note["notetext"] = notice;
-            note["objectid"] = new EntityReference("email", emailId);
+            Entity note = new Entity("annotation")
+            {
+                ["notetext"] = notice,
+                ["objectid"] = new EntityReference("email", emailId)
+            };
 
             service.Create(note);
         }
