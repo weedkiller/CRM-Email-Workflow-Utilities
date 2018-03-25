@@ -47,7 +47,7 @@ namespace LAT.WorkflowUtilities.Email.Tests
             {
                 Id = id2,
                 ["activitypartyid"] = id2,
-                ["activityid"] = new EntityReference("email", id),
+                ["activityid"] = email.ToEntityReference(),
                 ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
                 ["participationtypemask"] = new OptionSetValue(2)
             };
