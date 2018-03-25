@@ -104,6 +104,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="EmailConnectionTests.cs" />
     <Compile Include="SendEmailTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

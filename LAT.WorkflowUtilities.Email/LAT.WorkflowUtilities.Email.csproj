@@ -79,6 +79,7 @@
     <Compile Include="CcSecurityRole.cs" />
     <Compile Include="CcQueueMembers.cs" />
     <Compile Include="EmailQueueMembers.cs" />
+    <Compile Include="EmailConnection.cs" />
     <Compile Include="EmailSecurityRole.cs" />
     <Compile Include="CcTeam.cs" />
     <Compile Include="CheckAttachments.cs" />
