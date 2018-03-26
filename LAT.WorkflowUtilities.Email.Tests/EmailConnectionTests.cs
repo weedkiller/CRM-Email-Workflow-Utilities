@@ -59,17 +59,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -116,17 +117,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record2id"] = workflowContext.PrimaryEntityId,
+                ["record2id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record2objecttypecode"] = new OptionSetValue(8),
                 ["record2roleid"] = connectionRole.Id,
-                ["record2objecttypecode"] = 8,
-                ["record1id"] = account.Id,
-                ["record1objecttypecode"] = 1
+                ["record1id"] = account.ToEntityReference(),
+                ["record1objecttypecode"] = new OptionSetValue(1)
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", true },
                 { "SendEmail", false }
             };
 
@@ -186,17 +188,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -242,17 +245,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -299,17 +303,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -363,27 +368,28 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection1 = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account1.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account1.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             Entity connection2 = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = account2.Id,
-                ["record2objecttypecode"] = 1
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = account2.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(1),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -430,17 +436,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = systemUser.Id,
-                ["record2objecttypecode"] = 8
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = systemUser.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(8),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -487,17 +494,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = systemUser.Id,
-                ["record2objecttypecode"] = 8
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = systemUser.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(8),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
@@ -544,17 +552,18 @@ namespace LAT.WorkflowUtilities.Email.Tests
             Entity connection = new Entity("connection")
             {
                 Id = Guid.NewGuid(),
-                ["record1id"] = workflowContext.PrimaryEntityId,
-                ["record1roleid"] = connectionRole.Id,
-                ["record1objecttypecode"] = 8,
-                ["record2id"] = systemUser.Id,
-                ["record2objecttypecode"] = 8
+                ["record1id"] = new EntityReference("systemuser", workflowContext.PrimaryEntityId),
+                ["record1objecttypecode"] = new OptionSetValue(8),
+                ["record2id"] = systemUser.ToEntityReference(),
+                ["record2objecttypecode"] = new OptionSetValue(8),
+                ["record2roleid"] = connectionRole.Id
             };
 
             var inputs = new Dictionary<string, object>
             {
                 { "EmailToSend", email.ToEntityReference() },
                 { "ConnectionRole", connectionRole.ToEntityReference() },
+                { "IncludeOppositeConnection", false },
                 { "SendEmail", false }
             };
 
