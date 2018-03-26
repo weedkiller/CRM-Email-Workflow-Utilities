@@ -17,7 +17,7 @@ Custom workflow actions that deal with emails in Dynamics CRM 2015, 2016, & D365
 * Check Email Attachments Present & Count
 * Create Template 
 
-**Note - I am no longer supporting the 2011 & 2013 versions of this solution.** 
+**Note - I am no longer supporting the 2011/2013 version of this solution.** 
 
 *No warranty expressed or implied - use at your own risk!
 
