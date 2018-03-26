@@ -92,6 +92,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="CreateTemplateTests.cs" />
     <Compile Include="CheckAttachmentsTests.cs" />
     <Compile Include="DeleteAttachmentByNameTests.cs" />
     <Compile Include="EmailBusinessUnitTests.cs" />

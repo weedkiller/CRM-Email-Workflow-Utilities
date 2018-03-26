@@ -74,10 +74,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CcBusinessUnit.cs" />
+    <Compile Include="CreateTemplate.cs" />
     <Compile Include="DeleteAttachmentByName.cs" />
+    <Compile Include="DynamicUrlParser.cs" />
     <Compile Include="EmailBusinessUnit.cs" />
     <Compile Include="CcSecurityRole.cs" />
     <Compile Include="CcQueueMembers.cs" />
+    <Compile Include="CcConnection.cs" />
     <Compile Include="EmailQueueMembers.cs" />
     <Compile Include="EmailConnection.cs" />
     <Compile Include="EmailSecurityRole.cs" />
