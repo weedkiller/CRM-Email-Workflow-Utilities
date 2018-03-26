@@ -13,9 +13,9 @@ using System.Linq;
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public class EmailConnection : WorkFlowActivityBase
+    public class CcConnection : WorkFlowActivityBase
     {
-        public EmailConnection() : base(typeof(EmailConnection)) { }
+        public CcConnection() : base(typeof(CcConnection)) { }
 
         [RequiredArgument]
         [Input("Email To Send")]
@@ -53,7 +53,7 @@ namespace LAT.WorkflowUtilities.Email
             bool includeOpposite = IncludeOppositeConnection.Get(context);
             bool sendEmail = SendEmail.Get(context);
 
-            List<Entity> toList = new List<Entity>();
+            List<Entity> ccList = new List<Entity>();
 
             Entity email = RetrieveEmail(localContext.OrganizationService, emailToSend.Id);
 
@@ -64,17 +64,18 @@ namespace LAT.WorkflowUtilities.Email
             }
 
             //Add any pre-defined recipients specified to the array               
-            foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("to").Entities)
+            foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("cc").Entities)
             {
-                toList.Add(activityParty);
+                ccList.Add(activityParty);
             }
 
             EntityCollection records = GetConnectedRecords(localContext.OrganizationService, primaryEntityId, connectionRole.Id, includeOpposite);
+            localContext.TracingService.Trace($"Found {records.Entities.Count} records");
 
-            toList = ProcessRecords(localContext.OrganizationService, records, toList, primaryEntityId);
+            ccList = ProcessRecords(localContext.OrganizationService, records, ccList, primaryEntityId);
 
             //Update the email
-            email["to"] = toList.ToArray();
+            email["cc"] = ccList.ToArray();
             localContext.OrganizationService.Update(email);
 
             //Send
@@ -90,7 +91,7 @@ namespace LAT.WorkflowUtilities.Email
                 localContext.OrganizationService.Execute(request);
             }
 
-            UsersAdded.Set(context, toList.Count);
+            UsersAdded.Set(context, ccList.Count);
         }
 
         private static Entity GetEntity(IOrganizationService service, string logicalName, Guid id, string emailField)
@@ -252,7 +253,7 @@ namespace LAT.WorkflowUtilities.Email
 
         private static Entity RetrieveEmail(IOrganizationService service, Guid emailId)
         {
-            return service.Retrieve("email", emailId, new ColumnSet("to"));
+            return service.Retrieve("email", emailId, new ColumnSet("cc"));
         }
 
         private static string GetEntityLogicalName(IOrganizationService service, int typeCode)
