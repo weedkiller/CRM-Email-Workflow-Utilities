@@ -1,6 +1,8 @@
 # CRM Email Workflow Utilities
 Custom workflow actions that deal with emails in Dynamics CRM 2015, 2016, & D365/CE (v7.0+)
 
+**Latest Release: https://github.com/jlattimer/CRM-Email-Workflow-Utilities/releases**
+
 * Email Business Unit
 * CC Business Unit
 * Email Security Role
