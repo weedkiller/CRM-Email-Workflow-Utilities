@@ -208,8 +208,8 @@ namespace LAT.WorkflowUtilities.Email
                         new ConditionExpression
                         {
                             AttributeName = "accessmode",
-                            Operator = ConditionOperator.NotIn,
-                            Values = { 3, 4 }
+                            Operator = ConditionOperator.In,
+                            Values = { 0, 1, 2 }
                         },
                         new ConditionExpression
                         {
