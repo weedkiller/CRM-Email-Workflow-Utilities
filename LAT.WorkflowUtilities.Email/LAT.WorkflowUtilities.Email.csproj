@@ -74,11 +74,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CcBusinessUnit.cs" />
+    <Compile Include="CreateTemplate.cs" />
     <Compile Include="DeleteAttachmentByName.cs" />
+    <Compile Include="DynamicUrlParser.cs" />
     <Compile Include="EmailBusinessUnit.cs" />
     <Compile Include="CcSecurityRole.cs" />
     <Compile Include="CcQueueMembers.cs" />
+    <Compile Include="CcConnection.cs" />
     <Compile Include="EmailQueueMembers.cs" />
+    <Compile Include="EmailConnection.cs" />
     <Compile Include="EmailSecurityRole.cs" />
     <Compile Include="CcTeam.cs" />
     <Compile Include="CheckAttachments.cs" />
@@ -91,6 +95,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="SendEmail.cs" />
+    <Compile Include="WorkFlowActivityBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="LATKey.snk" />

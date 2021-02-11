@@ -1,10 +1,7 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using FakeXrmEasy;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Query;
-using Microsoft.Xrm.Sdk.Workflow;
-using Moq;
 using System;
-using System.Activities;
 using System.Collections.Generic;
 
 namespace LAT.WorkflowUtilities.Email.Tests
@@ -12,16 +9,6 @@ namespace LAT.WorkflowUtilities.Email.Tests
     [TestClass]
     public class DeleteAttachmentTests
     {
-        #region Class Constructor
-        private readonly string _namespaceClassAssembly;
-        public DeleteAttachmentTests()
-        {
-            //[Namespace.class name, assembly name] for the class/assembly being tested
-            //Namespace and class name can be found on the class file being tested
-            //Assembly name can be found under the project properties on the Application tab
-            _namespaceClassAssembly = "LAT.WorkflowUtilities.Email.DeleteAttachment" + ", " + "LAT.WorkflowUtilities.Email";
-        }
-        #endregion
         #region Test Initialization and Cleanup
         // Use ClassInitialize to run code before running the first test in the class
         [ClassInitialize()]
@@ -41,947 +28,772 @@ namespace LAT.WorkflowUtilities.Email.Tests
         #endregion
 
         [TestMethod]
-        public void DeleteZeroGreater()
+        public void DeleteAttachment_Delete_0_Greater_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 10000},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment });
+
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroGreaterSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteZeroGreaterSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneGreater()
+        public void DeleteAttachment_Delete_1_Greater_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 10000},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneGreaterSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneGreaterSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteTwoGreater()
+        public void DeleteAttachment_Delete_2_Greater_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 500000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 500000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 10000},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 2;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteTwoGreaterSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteTwoGreaterSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 500000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneGreaterOneOfTwo()
+        public void DeleteAttachment_Delete_1_Of_2_Greater_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 500000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 10000},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneGreaterOneOfTwoSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneGreaterOneOfTwoSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 500000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteZeroLess()
+        public void DeleteAttachment_Delete_0_Less_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 50000,
+                ["filename"] = "text.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 0},
                 { "DeleteSizeMin", 10000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1 });
+
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroLessSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteZeroLessSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 50000;
-            attachment1["filename"] = "text.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneLess()
+        public void DeleteAttachment_Delete_1_Less_Than_10000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 0},
                 { "DeleteSizeMin", 10000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneLessSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneLessSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteTwoLess()
+        [ExpectedException(typeof(InvalidPluginExecutionException), "Minimum Size Cannot Be Greater Than Maximum Size")]
+        public void DeleteAttachment_Invalid_Range()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            var inputs = new Dictionary<string, object>
             {
                 { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                { "DeleteSizeMax", 100000},
+                { "DeleteSizeMin", 200000 },
+                { "Extensions" , null },
+                { "AppendNotice", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+
+            const int expected = 0;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
+        }
+
+        [TestMethod]
+        public void DeleteAttachment_Delete_2_Less_Than_10000()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 3000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 0},
                 { "DeleteSizeMin", 10000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 2;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteTwoLessSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteTwoLessSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 3000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneLessOneOfTwo()
+        public void DeleteAttachment_Delete_1_Of_2_Less_Than_5000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 500000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 0},
                 { "DeleteSizeMin", 5000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneLessOneOfTwoSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneLessOneOfTwoSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 500000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteZeroMixed()
+        public void DeleteAttachment_Delete_0_Between_3000_And_75000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 50000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 75000},
                 { "DeleteSizeMin", 3000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroMixedSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteZeroMixedSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 50000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneMixed()
+        public void DeleteAttachment_Delete_1_Between_3000_And_75000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 500000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 75000},
                 { "DeleteSizeMin", 3000 },
                 { "Extensions" , null },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneMixedSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneMixedSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 500000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteZeroExtension()
+        public void DeleteAttachment_Delete_0_PDF()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text.docx"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 1},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , "pdf" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroExtensionSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteZeroExtensionSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text.docx";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 5000;
-            attachment2["filename"] = "text.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneExtension()
+        public void DeleteAttachment_Delete_1_PDF()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text.pdf"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 1},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , "pdf" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneExtensionSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneExtensionSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text.pdf";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteTwoExtension()
+        public void DeleteAttachment_Delete_2_PDF()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text1.pdf"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text2.pdf"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 1},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , "pdf" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 2;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteTwoExtensionSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteTwoExtensionSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text1.pdf";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 100000;
-            attachment2["filename"] = "text2.pdf";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneExtensionOneOfTwo()
+        public void DeleteAttachment_Delete_1_Of_2_PDF()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text1.pdf"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 1},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , "pdf" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneExtensionOneOfTwoSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneExtensionOneOfTwoSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text1.pdf";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 100000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteOneGreaterExtensionOneOfTwo()
+        public void DeleteAttachment_Delete_1_PDF_Less_Than_75000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
-                { "DeleteSizeMax", 1},
-                { "DeleteSizeMin", 0 },
-                { "Extensions" , "pdf" },
-                { "AppendNotice", false }
+                Id = id,
+                ["activityid"] = id
             };
 
-            //Expected value
-            const int expected = 1;
-
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneGreaterExtensionOneOfTwoSetup);
-
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneGreaterExtensionOneOfTwoSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.pdf";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 5000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
-        }
-
-        [TestMethod]
-        public void DeleteOneLessExtensionOneOfTwo()
-        {
-            //Target
-            Entity targetEntity = null;
-
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.pdf"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 0},
                 { "DeleteSizeMin", 5000 },
                 { "Extensions" , "pdf" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteOneLessExtensionOneOfTwoSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteOneLessExtensionOneOfTwoSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.pdf";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 5000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteZeroMixedExtension()
+        public void DeleteAttachment_Delete_0_PDF_Between_3000_And_75000()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 5000,
+                ["filename"] = "text1.pdf"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 50000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
             {
                 { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
                 { "DeleteSizeMax", 75000},
@@ -990,224 +802,116 @@ namespace LAT.WorkflowUtilities.Email.Tests
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroMixedExtensionSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-        }
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> DeleteZeroMixedExtensionSetup(Mock<IOrganizationService> serviceMock)
-        {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 5000;
-            attachment1["filename"] = "text1.pdf";
-
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 50000;
-            attachment2["filename"] = "text2.docx";
-
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
-
-            //New Note
-            Guid newNoteId = new Guid();
-
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
         [TestMethod]
-        public void DeleteTwoMultipleExtension()
+        public void DeleteAttachment_Delete_2_PDF_DOCX_Multiple_Extensions()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text1.pdf"
+            };
+
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text2.docx"
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
                 { "DeleteSizeMax", 1},
                 { "DeleteSizeMin", 0 },
                 { "Extensions" , "pdf,docx" },
                 { "AppendNotice", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
+
             const int expected = 2;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteTwoMultipleExtensionSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
 
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> DeleteTwoMultipleExtensionSetup(Mock<IOrganizationService> serviceMock)
+        [TestMethod]
+        public void DeleteAttachment_Delete_0()
         {
-            //Attachment List
-            Entity attachment1 = new Entity("activitymimeattachment");
-            attachment1["filesize"] = 100000;
-            attachment1["filename"] = "text1.pdf";
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            Entity attachment2 = new Entity("activitymimeattachment");
-            attachment2["filesize"] = 100000;
-            attachment2["filename"] = "text2.docx";
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id
+            };
 
-            EntityCollection attachments = new EntityCollection();
-            attachments.Entities.Add(attachment1);
-            attachments.Entities.Add(attachment2);
+            Entity activityMimeAttachment1 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text1.pdf"
+            };
 
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(attachments);
+            Entity activityMimeAttachment2 = new Entity("activitymimeattachment")
+            {
+                Id = Guid.NewGuid(),
+                ["objectid"] = email.Id,
+                ["filesize"] = 100000,
+                ["filename"] = "text2.docx"
+            };
 
-            //New Note
-            Guid newNoteId = new Guid();
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailWithAttachments", email.ToEntityReference() },
+                { "DeleteSizeMax", 0},
+                { "DeleteSizeMin", 0 },
+                { "Extensions", null },
+                { "AppendNotice", false }
+            };
 
-            serviceMock.Setup(t =>
-                t.Create(It.IsAny<Entity>()))
-                .ReturnsInOrder(newNoteId);
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityMimeAttachment1, activityMimeAttachment2 });
 
-            return serviceMock;
-        }
+            const int expected = 0;
 
-		[TestMethod]
-		public void DeleteZeroZero()
-		{
-			//Target
-			Entity targetEntity = null;
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<DeleteAttachment>(workflowContext, inputs);
 
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailWithAttachments", new EntityReference("email", Guid.NewGuid()) },
-				{ "DeleteSizeMax", 0},
-				{ "DeleteSizeMin", 0 },
-				{ "Extensions", null },
-				{ "AppendNotice", false }
-			};
-
-			//Expected value
-			const int expected = 0;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, DeleteZeroZeroSetup);
-
-			//Test
-			Assert.AreEqual(expected, output["NumberOfAttachmentsDeleted"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> DeleteZeroZeroSetup(Mock<IOrganizationService> serviceMock)
-		{
-			//Attachment List
-			Entity attachment1 = new Entity("activitymimeattachment");
-			attachment1["filesize"] = 100000;
-			attachment1["filename"] = "text1.pdf";
-
-			Entity attachment2 = new Entity("activitymimeattachment");
-			attachment2["filesize"] = 100000;
-			attachment2["filename"] = "text2.docx";
-
-			EntityCollection attachments = new EntityCollection();
-			attachments.Entities.Add(attachment1);
-			attachments.Entities.Add(attachment2);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(attachments);
-
-			//New Note
-			Guid newNoteId = new Guid();
-
-			serviceMock.Setup(t =>
-				t.Create(It.IsAny<Entity>()))
-				.ReturnsInOrder(newNoteId);
-
-			return serviceMock;
-		}
-
-		/// <summary>
-		/// Invokes the workflow.
-		/// </summary>
-		/// <param name="name">Namespace.Class, Assembly</param>
-		/// <param name="target">The target entity</param>
-		/// <param name="inputs">The workflow input parameters</param>
-		/// <param name="configuredServiceMock">The function to configure the Organization Service</param>
-		/// <returns>The workflow output parameters</returns>
-		private static IDictionary<string, object> InvokeWorkflow(string name, ref Entity target, Dictionary<string, object> inputs,
-            Func<Mock<IOrganizationService>, Mock<IOrganizationService>> configuredServiceMock)
-        {
-            var testClass = Activator.CreateInstance(Type.GetType(name)) as CodeActivity; ;
-
-            var serviceMock = new Mock<IOrganizationService>();
-            var factoryMock = new Mock<IOrganizationServiceFactory>();
-            var tracingServiceMock = new Mock<ITracingService>();
-            var workflowContextMock = new Mock<IWorkflowContext>();
-
-            //Apply configured Organization Service Mock
-            if (configuredServiceMock != null)
-                serviceMock = configuredServiceMock(serviceMock);
-
-            IOrganizationService service = serviceMock.Object;
-
-            //Mock workflow Context
-            var workflowUserId = Guid.NewGuid();
-            var workflowCorrelationId = Guid.NewGuid();
-            var workflowInitiatingUserId = Guid.NewGuid();
-
-            //Workflow Context Mock
-            workflowContextMock.Setup(t => t.InitiatingUserId).Returns(workflowInitiatingUserId);
-            workflowContextMock.Setup(t => t.CorrelationId).Returns(workflowCorrelationId);
-            workflowContextMock.Setup(t => t.UserId).Returns(workflowUserId);
-            var workflowContext = workflowContextMock.Object;
-
-            //Organization Service Factory Mock
-            factoryMock.Setup(t => t.CreateOrganizationService(It.IsAny<Guid>())).Returns(service);
-            var factory = factoryMock.Object;
-
-            //Tracing Service - Content written appears in output
-            tracingServiceMock.Setup(t => t.Trace(It.IsAny<string>(), It.IsAny<object[]>())).Callback<string, object[]>(MoqExtensions.WriteTrace);
-            var tracingService = tracingServiceMock.Object;
-
-            //Parameter Collection
-            ParameterCollection inputParameters = new ParameterCollection { { "Target", target } };
-            workflowContextMock.Setup(t => t.InputParameters).Returns(inputParameters);
-
-            //Workflow Invoker
-            var invoker = new WorkflowInvoker(testClass);
-            invoker.Extensions.Add(() => tracingService);
-            invoker.Extensions.Add(() => workflowContext);
-            invoker.Extensions.Add(() => factory);
-
-            return invoker.Invoke(inputs);
+            //Assert
+            Assert.AreEqual(expected, result["NumberOfAttachmentsDeleted"]);
         }
     }
 }

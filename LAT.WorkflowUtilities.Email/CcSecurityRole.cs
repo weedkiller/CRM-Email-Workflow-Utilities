@@ -6,11 +6,15 @@ using System;
 using System.Activities;
 using System.Collections.Generic;
 using System.Linq;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public class CcSecurityRole : CodeActivity
+    public class CcSecurityRole : WorkFlowActivityBase
     {
+        public CcSecurityRole() : base(typeof(CcSecurityRole)) { }
+
         [RequiredArgument]
         [Input("Email To Send")]
         [ReferenceTarget("email")]
@@ -26,78 +30,72 @@ namespace LAT.WorkflowUtilities.Email
         [Input("Send Email?")]
         public InArgument<bool> SendEmail { get; set; }
 
-        [OutputAttribute("Users Added")]
+        [Output("Users Added")]
         public OutArgument<int> UsersAdded { get; set; }
-        protected override void Execute(CodeActivityContext executionContext)
+
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
         {
-            ITracingService tracer = executionContext.GetExtension<ITracingService>();
-            IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-            IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-            IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-            try
+            EntityReference emailToSend = EmailToSend.Get(context);
+            Guid roleId = IsGuid(RecipientRole.Get(context));
+            bool sendEmail = SendEmail.Get(context);
+
+            if (roleId == Guid.Empty)
+                throw new InvalidWorkflowException("Invalid Role GUID");
+
+            List<Entity> ccList = new List<Entity>();
+
+            Entity email = RetrieveEmail(localContext.OrganizationService, emailToSend.Id);
+
+            if (email == null)
             {
-                EntityReference emailToSend = EmailToSend.Get(executionContext);
-                Guid roleId = IsGuid(RecipientRole.Get(executionContext));
-                bool sendEmail = SendEmail.Get(executionContext);
-
-                if (roleId == Guid.Empty)
-                {
-                    tracer.Trace("Invalid Role GUID");
-                    throw new InvalidWorkflowException("Invalid Role GUID");
-                }
-
-                List<Entity> ccList = new List<Entity>();
-
-                Entity email = RetrieveEmail(service, emailToSend.Id);
-
-                if (email == null)
-                {
-                    UsersAdded.Set(executionContext, 0);
-                    return;
-                }
-
-                //Add any pre-defined recipients specified to the array               
-                foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("cc").Entities)
-                {
-                    ccList.Add(activityParty);
-                }
-
-                EntityCollection users = GetRoleUsers(service, roleId);
-
-                ccList = ProcessUsers(users, ccList);
-
-                //Update the email
-                email["cc"] = ccList.ToArray();
-                service.Update(email);
-
-                //Send
-                if (sendEmail)
-                {
-                    SendEmailRequest request = new SendEmailRequest
-                    {
-                        EmailId = emailToSend.Id,
-                        TrackingToken = string.Empty,
-                        IssueSend = true
-                    };
-
-                    service.Execute(request);
-                }
-
-                UsersAdded.Set(executionContext, ccList.Count);
+                UsersAdded.Set(context, 0);
+                return;
             }
-            catch (Exception ex)
+
+            //Add any pre-defined recipients specified to the array               
+            foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("cc").Entities)
             {
-                tracer.Trace("Exception: {0}", ex.ToString());
+                ccList.Add(activityParty);
             }
+
+            EntityCollection users = GetRoleUsers(localContext.OrganizationService, roleId);
+
+            ccList = ProcessUsers(users, ccList);
+
+            //Update the email
+            email["cc"] = ccList.ToArray();
+            localContext.OrganizationService.Update(email);
+
+            //Send
+            if (sendEmail)
+            {
+                SendEmailRequest request = new SendEmailRequest
+                {
+                    EmailId = emailToSend.Id,
+                    TrackingToken = string.Empty,
+                    IssueSend = true
+                };
+
+                localContext.OrganizationService.Execute(request);
+            }
+
+            UsersAdded.Set(context, ccList.Count);
         }
 
-        private List<Entity> ProcessUsers(EntityCollection users, List<Entity> ccList)
+        private static List<Entity> ProcessUsers(EntityCollection users, List<Entity> ccList)
         {
             foreach (Entity e in users.Entities)
             {
-                Entity activityParty = new Entity("activityparty");
-                activityParty["partyid"] = new EntityReference("systemuser", e.Id);
+                Entity activityParty =
+                    new Entity("activityparty")
+                    {
+                        ["partyid"] = new EntityReference("systemuser", e.Id)
+                    };
 
                 if (ccList.Any(t => t.GetAttributeValue<EntityReference>("partyid").Id == e.Id)) continue;
 
@@ -107,14 +105,14 @@ namespace LAT.WorkflowUtilities.Email
             return ccList;
         }
 
-        private EntityCollection GetRoleUsers(IOrganizationService service, Guid id)
+        private static EntityCollection GetRoleUsers(IOrganizationService service, Guid id)
         {
             //Query for the users with security role
             QueryExpression query = new QueryExpression
             {
                 EntityName = "systemuser",
                 ColumnSet = new ColumnSet("systemuserid"),
-                LinkEntities = 
+                LinkEntities =
                 {
                     new LinkEntity
                     {
@@ -125,7 +123,7 @@ namespace LAT.WorkflowUtilities.Email
                         LinkCriteria = new FilterExpression
                         {
                             FilterOperator = LogicalOperator.And,
-                            Conditions = 
+                            Conditions =
                             {
                                 new ConditionExpression
                                 {
@@ -145,6 +143,12 @@ namespace LAT.WorkflowUtilities.Email
                         {
                             AttributeName = "internalemailaddress",
                             Operator = ConditionOperator.NotNull
+                        },
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
                         }
                     }
                 }
@@ -153,15 +157,16 @@ namespace LAT.WorkflowUtilities.Email
             return service.RetrieveMultiple(query);
         }
 
-        private Entity RetrieveEmail(IOrganizationService service, Guid emailId)
+        private static Entity RetrieveEmail(IOrganizationService service, Guid emailId)
         {
             return service.Retrieve("email", emailId, new ColumnSet("cc"));
         }
 
         private static Guid IsGuid(string value)
         {
-            Guid parsed;
-            return Guid.TryParse(value, out parsed) ? parsed : Guid.Empty;
+            return Guid.TryParse(value, out var parsed)
+                ? parsed
+                : Guid.Empty;
         }
     }
 }

@@ -6,177 +6,190 @@ using System;
 using System.Activities;
 using System.Collections.Generic;
 using System.Linq;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-	public class CcQueueMembers : CodeActivity
-	{
-		[RequiredArgument]
-		[Input("Email To Send")]
-		[ReferenceTarget("email")]
-		public InArgument<EntityReference> EmailToSend { get; set; }
+    public class CcQueueMembers : WorkFlowActivityBase
+    {
+        public CcQueueMembers() : base(typeof(CcQueueMembers)) { }
 
-		[RequiredArgument]
-		[Input("Recipient Queue")]
-		[ReferenceTarget("queue")]
-		public InArgument<EntityReference> RecipientQueue { get; set; }
+        [RequiredArgument]
+        [Input("Email To Send")]
+        [ReferenceTarget("email")]
+        public InArgument<EntityReference> EmailToSend { get; set; }
 
-		[RequiredArgument]
-		[Default("false")]
-		[Input("Include Owner?")]
-		public InArgument<bool> IncludeOwner { get; set; }
+        [RequiredArgument]
+        [Input("Recipient Queue")]
+        [ReferenceTarget("queue")]
+        public InArgument<EntityReference> RecipientQueue { get; set; }
 
-		[RequiredArgument]
-		[Default("false")]
-		[Input("Send Email?")]
-		public InArgument<bool> SendEmail { get; set; }
+        [RequiredArgument]
+        [Default("false")]
+        [Input("Include Owner?")]
+        public InArgument<bool> IncludeOwner { get; set; }
 
-		[OutputAttribute("Users Added")]
-		public OutArgument<int> UsersAdded { get; set; }
+        [RequiredArgument]
+        [Default("false")]
+        [Input("Send Email?")]
+        public InArgument<bool> SendEmail { get; set; }
 
-		protected override void Execute(CodeActivityContext executionContext)
-		{
-			ITracingService tracer = executionContext.GetExtension<ITracingService>();
-			IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-			IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-			IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+        [Output("Users Added")]
+        public OutArgument<int> UsersAdded { get; set; }
 
-			try
-			{
-				EntityReference emailToSend = EmailToSend.Get(executionContext);
-				EntityReference recipientQueue = RecipientQueue.Get(executionContext);
-				bool sendEmail = SendEmail.Get(executionContext);
-				bool includeOwner = IncludeOwner.Get(executionContext);
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
+        {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-				List<Entity> ccList = new List<Entity>();
+            EntityReference emailToSend = EmailToSend.Get(context);
+            EntityReference recipientQueue = RecipientQueue.Get(context);
+            bool sendEmail = SendEmail.Get(context);
+            bool includeOwner = IncludeOwner.Get(context);
 
-				Entity email = RetrieveEmail(service, emailToSend.Id);
+            List<Entity> ccList = new List<Entity>();
 
-				if (email == null)
-				{
-					UsersAdded.Set(executionContext, 0);
-					return;
-				}
+            Entity email = RetrieveEmail(localContext.OrganizationService, emailToSend.Id);
 
-				//Add any pre-defined recipients specified to the array               
-				foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("cc").Entities)
-				{
-					ccList.Add(activityParty);
-				}
+            if (email == null)
+            {
+                UsersAdded.Set(context, 0);
+                return;
+            }
 
-				bool is2011 = Is2011(service);
-				EntityCollection users = is2011 ? GetQueueOwner(service, recipientQueue.Id) : GetQueueMembers(service, recipientQueue.Id);
+            //Add any pre-defined recipients specified to the array               
+            foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("cc").Entities)
+            {
+                ccList.Add(activityParty);
+            }
 
-				if (!is2011)
-				{
-					if (includeOwner)
-						users.Entities.AddRange(GetQueueOwner(service, recipientQueue.Id).Entities);
-				}
+            bool is2011 = Is2011(localContext.OrganizationService);
+            EntityCollection users = is2011
+                ? GetQueueOwner(localContext.OrganizationService, recipientQueue.Id)
+                : GetQueueMembers(localContext.OrganizationService, recipientQueue.Id);
 
-				ccList = ProcessUsers(users, ccList);
+            if (!is2011)
+            {
+                if (includeOwner)
+                    users.Entities.AddRange(GetQueueOwner(localContext.OrganizationService, recipientQueue.Id).Entities);
+            }
 
-				//Update the email
-				email["cc"] = ccList.ToArray();
-				service.Update(email);
+            ccList = ProcessUsers(users, ccList);
 
-				//Send
-				if (sendEmail)
-				{
-					SendEmailRequest request = new SendEmailRequest
-					{
-						EmailId = emailToSend.Id,
-						TrackingToken = string.Empty,
-						IssueSend = true
-					};
+            //Update the email
+            email["cc"] = ccList.ToArray();
+            localContext.OrganizationService.Update(email);
 
-					service.Execute(request);
-				}
+            //Send
+            if (sendEmail)
+            {
+                SendEmailRequest request = new SendEmailRequest
+                {
+                    EmailId = emailToSend.Id,
+                    TrackingToken = string.Empty,
+                    IssueSend = true
+                };
 
-				UsersAdded.Set(executionContext, ccList.Count);
-			}
-			catch (Exception e)
-			{
-				throw new InvalidPluginExecutionException(e.Message);
-			}
-		}
+                localContext.OrganizationService.Execute(request);
+            }
 
-		private Entity RetrieveEmail(IOrganizationService service, Guid emailId)
-		{
-			return service.Retrieve("email", emailId, new ColumnSet("cc"));
-		}
+            UsersAdded.Set(context, ccList.Count);
+        }
 
-		private List<Entity> ProcessUsers(EntityCollection queueMembers, List<Entity> ccList)
-		{
-			foreach (Entity e in queueMembers.Entities)
-			{
-				Entity activityParty = new Entity("activityparty");
-				activityParty["partyid"] = new EntityReference("systemuser", e.Id);
+        private static Entity RetrieveEmail(IOrganizationService service, Guid emailId)
+        {
+            return service.Retrieve("email", emailId, new ColumnSet("cc"));
+        }
 
-				if (ccList.Any(t => t.GetAttributeValue<EntityReference>("partyid").Id == e.Id)) continue;
+        private static List<Entity> ProcessUsers(EntityCollection queueMembers, List<Entity> ccList)
+        {
+            foreach (Entity e in queueMembers.Entities)
+            {
+                Entity activityParty =
+                    new Entity("activityparty")
+                    {
+                        ["partyid"] = new EntityReference("systemuser", e.Id)
+                    };
 
-				ccList.Add(activityParty);
-			}
+                if (ccList.Any(t => t.GetAttributeValue<EntityReference>("partyid").Id == e.Id)) continue;
 
-			return ccList;
-		}
+                ccList.Add(activityParty);
+            }
 
-		private bool Is2011(IOrganizationService service)
-		{
-			//Check if 2011
-			RetrieveVersionRequest request = new RetrieveVersionRequest();
-			OrganizationResponse response = service.Execute(request);
+            return ccList;
+        }
 
-			return response.Results["Version"].ToString().StartsWith("5");
-		}
+        private static bool Is2011(IOrganizationService service)
+        {
+            //Check if 2011
+            RetrieveVersionRequest request = new RetrieveVersionRequest();
+            OrganizationResponse response = service.Execute(request);
 
-		private EntityCollection GetQueueOwner(IOrganizationService service, Guid queueId)
-		{
-			//Retrieve the queue owner
-			Entity queue = service.Retrieve("queue", queueId, new ColumnSet("ownerid"));
+            return response.Results["Version"].ToString().StartsWith("5");
+        }
 
-			if (queue == null) return new EntityCollection();
+        private static EntityCollection GetQueueOwner(IOrganizationService service, Guid queueId)
+        {
+            //Retrieve the queue owner
+            Entity queue = service.Retrieve("queue", queueId, new ColumnSet("ownerid"));
 
-			Entity owner = new Entity("systemuser") { Id = queue.GetAttributeValue<EntityReference>("ownerid").Id };
+            if (queue == null) return new EntityCollection();
 
-			EntityCollection ownerCollection = new EntityCollection();
-			ownerCollection.Entities.Add(owner);
+            Entity owner = new Entity("systemuser") { Id = queue.GetAttributeValue<EntityReference>("ownerid").Id };
 
-			return ownerCollection;
-		}
+            EntityCollection ownerCollection = new EntityCollection();
+            ownerCollection.Entities.Add(owner);
 
-		private EntityCollection GetQueueMembers(IOrganizationService service, Guid queueId)
-		{
-			//Query for the business unit members
-			QueryExpression query = new QueryExpression
-			{
-				EntityName = "systemuser",
-				ColumnSet = new ColumnSet(false),
-				LinkEntities =
-				{
-					new LinkEntity
-					{
-						LinkFromEntityName = "systemuser",
-						LinkFromAttributeName = "systemuserid",
-						LinkToEntityName = "queuemembership",
-						LinkToAttributeName = "systemuserid",
-						Columns = new ColumnSet("systemuserid"),
-						LinkCriteria = new FilterExpression
-						{
-							Conditions =
-							{
-								new ConditionExpression
-								{
-									AttributeName = "queueid",
-									Operator = ConditionOperator.Equal,
-									Values = { queueId }
-								}
-							}
-						}
-					}
-				}
-			};
+            return ownerCollection;
+        }
 
-			return service.RetrieveMultiple(query);
-		}
-	}
+        private static EntityCollection GetQueueMembers(IOrganizationService service, Guid queueId)
+        {
+            //Query for the business unit members
+            QueryExpression query = new QueryExpression
+            {
+                EntityName = "systemuser",
+                ColumnSet = new ColumnSet(false),
+                LinkEntities =
+                {
+                    new LinkEntity
+                    {
+                        LinkFromEntityName = "systemuser",
+                        LinkFromAttributeName = "systemuserid",
+                        LinkToEntityName = "queuemembership",
+                        LinkToAttributeName = "systemuserid",
+                        Columns = new ColumnSet("systemuserid"),
+                        LinkCriteria = new FilterExpression
+                        {
+                            Conditions =
+                            {
+                                new ConditionExpression
+                                {
+                                    AttributeName = "queueid",
+                                    Operator = ConditionOperator.Equal,
+                                    Values = { queueId }
+                                }
+                            }
+                        }
+                    }
+                },
+                Criteria = new FilterExpression
+                {
+                    Conditions = {
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
+                        }
+                    }
+                }
+            };
+
+            return service.RetrieveMultiple(query);
+        }
+    }
 }

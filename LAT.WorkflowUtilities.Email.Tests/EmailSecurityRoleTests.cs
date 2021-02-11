@@ -1,10 +1,7 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using FakeXrmEasy;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Query;
-using Microsoft.Xrm.Sdk.Workflow;
-using Moq;
 using System;
-using System.Activities;
 using System.Collections.Generic;
 
 namespace LAT.WorkflowUtilities.Email.Tests
@@ -12,16 +9,6 @@ namespace LAT.WorkflowUtilities.Email.Tests
     [TestClass]
     public class EmailSecurityRoleTests
     {
-        #region Class Constructor
-        private readonly string _namespaceClassAssembly;
-        public EmailSecurityRoleTests()
-        {
-            //[Namespace.class name, assembly name] for the class/assembly being tested
-            //Namespace and class name can be found on the class file being tested
-            //Assembly name can be found under the project properties on the Application tab
-            _namespaceClassAssembly = "LAT.WorkflowUtilities.Email.EmailSecurityRole" + ", " + "LAT.WorkflowUtilities.Email";
-        }
-        #endregion
         #region Test Initialization and Cleanup
         // Use ClassInitialize to run code before running the first test in the class
         [ClassInitialize()]
@@ -41,276 +28,295 @@ namespace LAT.WorkflowUtilities.Email.Tests
         #endregion
 
         [TestMethod]
-        public void NoUserRoleNoExisting()
+        public void EmailSecurityRole_1_Role_0_Users_0_Existing()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
                 { "RecipientRole", Guid.NewGuid().ToString() },
                 { "SendEmail", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email });
             const int expected = 0;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, NoUserRoleNoExistingSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailSecurityRole>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["UsersAdded"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> NoUserRoleNoExistingSetup(Mock<IOrganizationService> serviceMock)
-        {
-            EntityCollection existingRecipients = new EntityCollection();
-
-            Entity email = new Entity("email") { Id = Guid.NewGuid() };
-            email["to"] = existingRecipients;
-
-            serviceMock.Setup(t =>
-                t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-                .ReturnsInOrder(email);
-
-            EntityCollection roleMembers = new EntityCollection();
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(roleMembers);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
         }
 
         [TestMethod]
-        public void OneUserRoleNoExisting()
+        public void EmailSecurityRole_1_Role_1_User_0_Existing()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid roleId = Guid.NewGuid();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-                { "RecipientRole", Guid.NewGuid().ToString() },
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test1@test.com",
+                ["isdisabled"] = false
+            };
+
+            Entity systemUserRoles = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser1.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientRole", roleId.ToString() },
                 { "SendEmail", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, systemUser1, systemUserRoles });
             const int expected = 1;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneUserRoleNoExistingSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailSecurityRole>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["UsersAdded"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> OneUserRoleNoExistingSetup(Mock<IOrganizationService> serviceMock)
-        {
-            EntityCollection existingRecipients = new EntityCollection();
-
-            Entity email = new Entity("email") { Id = Guid.NewGuid() };
-            email["to"] = existingRecipients;
-
-            serviceMock.Setup(t =>
-                t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-                .ReturnsInOrder(email);
-
-            Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-            user1["internalemailaddress"] = "test1@test.com";
-
-            EntityCollection roleMembers = new EntityCollection();
-            roleMembers.Entities.Add(user1);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(roleMembers);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
         }
 
         [TestMethod]
-        public void TwoUserRoleNoExisting()
+        public void EmailSecurityRole_1_Role_2_Users_0_Existing()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid roleId = Guid.NewGuid();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-                { "RecipientRole", Guid.NewGuid().ToString() },
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test1@test.com",
+                ["isdisabled"] = false
+            };
+
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test2@test.com",
+                ["isdisabled"] = false
+            };
+
+            Entity systemUserRoles1 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser1.Id
+            };
+
+            Entity systemUserRoles2 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser2.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientRole", roleId.ToString() },
                 { "SendEmail", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, systemUser1, systemUserRoles1, systemUser2, systemUserRoles2 });
             const int expected = 2;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, TwoUserRoleNoExistingSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailSecurityRole>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["UsersAdded"]);
-        }
-
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> TwoUserRoleNoExistingSetup(Mock<IOrganizationService> serviceMock)
-        {
-            EntityCollection existingRecipients = new EntityCollection();
-
-            Entity email = new Entity("email") { Id = Guid.NewGuid() };
-            email["to"] = existingRecipients;
-
-            serviceMock.Setup(t =>
-                t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-                .ReturnsInOrder(email);
-
-            Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-            user1["internalemailaddress"] = "test1@test.com";
-            Entity user2 = new Entity("systemuser") { Id = Guid.NewGuid() };
-            user2["internalemailaddress"] = "test2@test.com";
-
-            EntityCollection roleMembers = new EntityCollection();
-            roleMembers.Entities.Add(user1);
-            roleMembers.Entities.Add(user2);
-
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(roleMembers);
-
-            return serviceMock;
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
         }
 
         [TestMethod]
-        public void TwoUserRoleOneExisting()
+        public void EmailSecurityRole_1_Role_2_Users_1_Existing()
         {
-            //Target
-            Entity targetEntity = null;
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            //Input parameters
-            var inputs = new Dictionary<string, object> 
+            Guid roleId = Guid.NewGuid();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
             {
-                { "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-                { "RecipientRole", Guid.NewGuid().ToString() },
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity activityParty = new Entity("activityparty")
+            {
+                Id = id2,
+                ["activitypartyid"] = id2,
+                ["activityid"] = new EntityReference("email", id),
+                ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
+                ["participationtypemask"] = new OptionSetValue(2)
+            };
+
+            EntityCollection to = new EntityCollection();
+            to.Entities.Add(activityParty);
+            email["to"] = to;
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test1@test.com",
+                ["isdisabled"] = false
+            };
+
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test2@test.com",
+                ["isdisabled"] = false
+            };
+
+            Entity systemUserRoles1 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser1.Id
+            };
+
+            Entity systemUserRoles2 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser2.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientRole", roleId.ToString() },
                 { "SendEmail", false }
             };
 
-            //Expected value
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, systemUser1, systemUserRoles1, systemUser2, systemUserRoles2, activityParty });
             const int expected = 3;
 
-            //Invoke the workflow
-            var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, TwoUserRoleOneExistingSetup);
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailSecurityRole>(workflowContext, inputs);
 
-            //Test
-            Assert.AreEqual(expected, output["UsersAdded"]);
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
         }
 
-        /// <summary>
-        /// Modify to mock CRM Organization Service actions
-        /// </summary>
-        /// <param name="serviceMock">The Organization Service to mock</param>
-        /// <returns>Configured Organization Service</returns>
-        private static Mock<IOrganizationService> TwoUserRoleOneExistingSetup(Mock<IOrganizationService> serviceMock)
+        [TestMethod]
+        public void EmailSecurityRole_1_Role_2_Users_1_Disabled_1_Existing()
         {
-            Entity activityParty = new Entity("activityparty") { Id = Guid.NewGuid() };
-            activityParty["partyid"] = new EntityReference("contact", Guid.NewGuid());
-            EntityCollection existingRecipients = new EntityCollection();
-            existingRecipients.Entities.Add(activityParty);
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
 
-            Entity email = new Entity("email") { Id = Guid.NewGuid() };
-            email["to"] = existingRecipients;
+            Guid roleId = Guid.NewGuid();
 
-            serviceMock.Setup(t =>
-                t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-                .ReturnsInOrder(email);
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id
+            };
 
-            Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-            user1["internalemailaddress"] = "test1@test.com";
-            Entity user2 = new Entity("systemuser") { Id = Guid.NewGuid() };
-            user2["internalemailaddress"] = "test2@test.com";
+            Guid id2 = Guid.NewGuid();
+            Entity activityParty = new Entity("activityparty")
+            {
+                Id = id2,
+                ["activitypartyid"] = id2,
+                ["activityid"] = new EntityReference("email", id),
+                ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
+                ["participationtypemask"] = new OptionSetValue(2)
+            };
 
-            EntityCollection roleMembers = new EntityCollection();
-            roleMembers.Entities.Add(user1);
-            roleMembers.Entities.Add(user2);
+            EntityCollection to = new EntityCollection();
+            to.Entities.Add(activityParty);
+            email["to"] = to;
 
-            serviceMock.Setup(t =>
-                t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-                .ReturnsInOrder(roleMembers);
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test1@test.com",
+                ["isdisabled"] = false
+            };
 
-            return serviceMock;
-        }
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["internalemailaddress"] = "test2@test.com",
+                ["isdisabled"] = true
+            };
 
-        /// <summary>
-        /// Invokes the workflow.
-        /// </summary>
-        /// <param name="name">Namespace.Class, Assembly</param>
-        /// <param name="target">The target entity</param>
-        /// <param name="inputs">The workflow input parameters</param>
-        /// <param name="configuredServiceMock">The function to configure the Organization Service</param>
-        /// <returns>The workflow output parameters</returns>
-        private static IDictionary<string, object> InvokeWorkflow(string name, ref Entity target, Dictionary<string, object> inputs,
-            Func<Mock<IOrganizationService>, Mock<IOrganizationService>> configuredServiceMock)
-        {
-            var testClass = Activator.CreateInstance(Type.GetType(name)) as CodeActivity; ;
+            Entity systemUserRoles1 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser1.Id
+            };
 
-            var serviceMock = new Mock<IOrganizationService>();
-            var factoryMock = new Mock<IOrganizationServiceFactory>();
-            var tracingServiceMock = new Mock<ITracingService>();
-            var workflowContextMock = new Mock<IWorkflowContext>();
+            Entity systemUserRoles2 = new Entity("systemuserroles")
+            {
+                Id = Guid.NewGuid(),
+                ["roleid"] = roleId,
+                ["systemuserid"] = systemUser2.Id
+            };
 
-            //Apply configured Organization Service Mock
-            if (configuredServiceMock != null)
-                serviceMock = configuredServiceMock(serviceMock);
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientRole", roleId.ToString() },
+                { "SendEmail", false }
+            };
 
-            IOrganizationService service = serviceMock.Object;
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, systemUser1, systemUserRoles1, systemUser2, systemUserRoles2, activityParty });
+            const int expected = 2;
 
-            //Mock workflow Context
-            var workflowUserId = Guid.NewGuid();
-            var workflowCorrelationId = Guid.NewGuid();
-            var workflowInitiatingUserId = Guid.NewGuid();
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailSecurityRole>(workflowContext, inputs);
 
-            //Workflow Context Mock
-            workflowContextMock.Setup(t => t.InitiatingUserId).Returns(workflowInitiatingUserId);
-            workflowContextMock.Setup(t => t.CorrelationId).Returns(workflowCorrelationId);
-            workflowContextMock.Setup(t => t.UserId).Returns(workflowUserId);
-            var workflowContext = workflowContextMock.Object;
-
-            //Organization Service Factory Mock
-            factoryMock.Setup(t => t.CreateOrganizationService(It.IsAny<Guid>())).Returns(service);
-            var factory = factoryMock.Object;
-
-            //Tracing Service - Content written appears in output
-            tracingServiceMock.Setup(t => t.Trace(It.IsAny<string>(), It.IsAny<object[]>())).Callback<string, object[]>(MoqExtensions.WriteTrace);
-            var tracingService = tracingServiceMock.Object;
-
-            //Parameter Collection
-            ParameterCollection inputParameters = new ParameterCollection { { "Target", target } };
-            workflowContextMock.Setup(t => t.InputParameters).Returns(inputParameters);
-
-            //Workflow Invoker
-            var invoker = new WorkflowInvoker(testClass);
-            invoker.Extensions.Add(() => tracingService);
-            invoker.Extensions.Add(() => workflowContext);
-            invoker.Extensions.Add(() => factory);
-
-            return invoker.Invoke(inputs);
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
         }
     }
 }

@@ -6,11 +6,15 @@ using System;
 using System.Activities;
 using System.Collections.Generic;
 using System.Linq;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public sealed class EmailBusinessUnit : CodeActivity
+    public class EmailBusinessUnit : WorkFlowActivityBase
     {
+        public EmailBusinessUnit() : base(typeof(EmailBusinessUnit)) { }
+
         [RequiredArgument]
         [Input("Email To Send")]
         [ReferenceTarget("email")]
@@ -31,82 +35,78 @@ namespace LAT.WorkflowUtilities.Email
         [Input("Send Email?")]
         public InArgument<bool> SendEmail { get; set; }
 
-        [OutputAttribute("Users Added")]
+        [Output("Users Added")]
         public OutArgument<int> UsersAdded { get; set; }
 
-        protected override void Execute(CodeActivityContext executionContext)
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
         {
-            ITracingService tracer = executionContext.GetExtension<ITracingService>();
-            IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-            IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-            IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-            try
+            EntityReference emailToSend = EmailToSend.Get(context);
+            EntityReference recipientBusinessUnit = RecipientBusinessUnit.Get(context);
+            bool includeChildren = IncludeChildren.Get(context);
+            bool sendEmail = SendEmail.Get(context);
+
+            List<Entity> toList = new List<Entity>();
+
+            Entity email = RetrieveEmail(localContext.OrganizationService, emailToSend.Id);
+
+            if (email == null)
             {
-                EntityReference emailToSend = EmailToSend.Get(executionContext);
-                EntityReference recipientBusinessUnit = RecipientBusinessUnit.Get(executionContext);
-                bool includeChildren = IncludeChildren.Get(executionContext);
-                bool sendEmail = SendEmail.Get(executionContext);
-
-                List<Entity> toList = new List<Entity>();
-
-                Entity email = RetrieveEmail(service, emailToSend.Id);
-
-                if (email == null)
-                {
-                    UsersAdded.Set(executionContext, 0);
-                    return;
-                }
-
-                //Add any pre-defined recipients specified to the array               
-                foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("to").Entities)
-                {
-                    toList.Add(activityParty);
-                }
-
-                EntityCollection buUsers = GetBuUsers(service, recipientBusinessUnit.Id);
-
-                toList = ProcessUsers(buUsers, toList);
-
-                if (includeChildren)
-                    toList = DrillDownBu(service, recipientBusinessUnit.Id, toList);
-
-                //Update the email
-                email["to"] = toList.ToArray();
-                service.Update(email);
-
-                //Send
-                if (sendEmail)
-                {
-                    SendEmailRequest request = new SendEmailRequest
-                    {
-                        EmailId = emailToSend.Id,
-                        TrackingToken = string.Empty,
-                        IssueSend = true
-                    };
-
-                    service.Execute(request);
-                }
-
-                UsersAdded.Set(executionContext, toList.Count);
+                UsersAdded.Set(context, 0);
+                return;
             }
-            catch (Exception ex)
+
+            //Add any pre-defined recipients specified to the array               
+            foreach (Entity activityParty in email.GetAttributeValue<EntityCollection>("to").Entities)
             {
-                tracer.Trace("Exception: {0}", ex.ToString());
+                toList.Add(activityParty);
             }
+
+            EntityCollection buUsers = GetBuUsers(localContext.OrganizationService, recipientBusinessUnit.Id);
+
+            toList = ProcessUsers(buUsers, toList);
+
+            if (includeChildren)
+                toList = DrillDownBu(localContext.OrganizationService, recipientBusinessUnit.Id, toList);
+
+            //Update the email
+            email["to"] = toList.ToArray();
+            localContext.OrganizationService.Update(email);
+
+            //Send
+            if (sendEmail)
+            {
+                SendEmailRequest request = new SendEmailRequest
+                {
+                    EmailId = emailToSend.Id,
+                    TrackingToken = string.Empty,
+                    IssueSend = true
+                };
+
+                localContext.OrganizationService.Execute(request);
+            }
+
+            UsersAdded.Set(context, toList.Count);
         }
 
-        private Entity RetrieveEmail(IOrganizationService service, Guid emailId)
+        private static Entity RetrieveEmail(IOrganizationService service, Guid emailId)
         {
             return service.Retrieve("email", emailId, new ColumnSet("to"));
         }
 
-        private List<Entity> ProcessUsers(EntityCollection teamMembers, List<Entity> toList)
+        private static List<Entity> ProcessUsers(EntityCollection teamMembers, List<Entity> toList)
         {
             foreach (Entity e in teamMembers.Entities)
             {
-                Entity activityParty = new Entity("activityparty");
-                activityParty["partyid"] = new EntityReference("systemuser", e.Id);
+                Entity activityParty =
+                    new Entity("activityparty")
+                    {
+                        ["partyid"] = new EntityReference("systemuser", e.Id)
+                    };
 
                 if (toList.Any(t => t.GetAttributeValue<EntityReference>("partyid").Id == e.Id)) continue;
 
@@ -116,7 +116,7 @@ namespace LAT.WorkflowUtilities.Email
             return toList;
         }
 
-        private List<Entity> DrillDownBu(IOrganizationService service, Guid businessUnitId, List<Entity> toList)
+        private static List<Entity> DrillDownBu(IOrganizationService service, Guid businessUnitId, List<Entity> toList)
         {
             //Find and process child business units
             EntityCollection childBu = GetChildBu(service, businessUnitId);
@@ -131,14 +131,14 @@ namespace LAT.WorkflowUtilities.Email
             return toList;
         }
 
-        private EntityCollection GetChildBu(IOrganizationService service, Guid businessUnitId)
+        private static EntityCollection GetChildBu(IOrganizationService service, Guid businessUnitId)
         {
             //Query for the child business units
             QueryExpression query = new QueryExpression
             {
                 EntityName = "businessunit",
                 ColumnSet = new ColumnSet("businessunitid"),
-                LinkEntities = 
+                LinkEntities =
                     {
                         new LinkEntity
                         {
@@ -149,7 +149,7 @@ namespace LAT.WorkflowUtilities.Email
                             LinkCriteria = new FilterExpression
                             {
                                 FilterOperator = LogicalOperator.And,
-                                Conditions = 
+                                Conditions =
                                 {
                                     new ConditionExpression
                                     {
@@ -166,14 +166,14 @@ namespace LAT.WorkflowUtilities.Email
             return service.RetrieveMultiple(query);
         }
 
-        private EntityCollection GetBuUsers(IOrganizationService service, Guid businessUnitId)
+        private static EntityCollection GetBuUsers(IOrganizationService service, Guid businessUnitId)
         {
             //Query for the business unit members
             QueryExpression query = new QueryExpression
             {
                 EntityName = "systemuser",
                 ColumnSet = new ColumnSet("systemuserid"),
-                LinkEntities = 
+                LinkEntities =
                 {
                     new LinkEntity
                     {
@@ -184,7 +184,7 @@ namespace LAT.WorkflowUtilities.Email
                         LinkCriteria = new FilterExpression
                         {
                             FilterOperator = LogicalOperator.And,
-                            Conditions = 
+                            Conditions =
                             {
                                 new ConditionExpression
                                 {
@@ -208,8 +208,14 @@ namespace LAT.WorkflowUtilities.Email
                         new ConditionExpression
                         {
                             AttributeName = "accessmode",
-                            Operator = ConditionOperator.NotIn,
-                            Values = { 3, 4 }
+                            Operator = ConditionOperator.In,
+                            Values = { 0, 1, 2 }
+                        },
+                        new ConditionExpression
+                        {
+                            AttributeName = "isdisabled",
+                            Operator = ConditionOperator.Equal,
+                            Values = { false }
                         }
                     }
                 }

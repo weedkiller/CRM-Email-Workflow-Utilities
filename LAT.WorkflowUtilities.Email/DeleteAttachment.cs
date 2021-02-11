@@ -5,11 +5,15 @@ using System;
 using System.Activities;
 using System.Collections.Generic;
 using System.Text;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public sealed class DeleteAttachment : CodeActivity
+    public class DeleteAttachment : WorkFlowActivityBase
     {
+        public DeleteAttachment() : base(typeof(DeleteAttachment)) { }
+
         [RequiredArgument]
         [Input("Email With Attachments To Remove")]
         [ReferenceTarget("email")]
@@ -29,77 +33,70 @@ namespace LAT.WorkflowUtilities.Email
         [Default("false")]
         public InArgument<bool> AppendNotice { get; set; }
 
-        [OutputAttribute("Number Of Attachments Deleted")]
+        [Output("Number Of Attachments Deleted")]
         public OutArgument<int> NumberOfAttachmentsDeleted { get; set; }
 
-        protected override void Execute(CodeActivityContext executionContext)
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
         {
-            ITracingService tracer = executionContext.GetExtension<ITracingService>();
-            IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-            IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-            IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-            try
+            EntityReference emailWithAttachments = EmailWithAttachments.Get(context);
+            int deleteSizeMax = DeleteSizeMax.Get(context);
+            int deleteSizeMin = DeleteSizeMin.Get(context);
+            string extensions = Extensions.Get(context);
+            bool appendNotice = AppendNotice.Get(context);
+
+            if (deleteSizeMax == 0) deleteSizeMax = int.MaxValue;
+            if (deleteSizeMin > deleteSizeMax)
             {
-                EntityReference emailWithAttachments = EmailWithAttachments.Get(executionContext);
-                int deleteSizeMax = DeleteSizeMax.Get(executionContext);
-                int deleteSizeMin = DeleteSizeMin.Get(executionContext);
-                string extensions = Extensions.Get(executionContext);
-                bool appendNotice = AppendNotice.Get(executionContext);
-
-                if (deleteSizeMax == 0) deleteSizeMax = int.MaxValue;
-                if (deleteSizeMin > deleteSizeMax)
-                {
-                    tracer.Trace("Exception: {0}", "Min:" + deleteSizeMin + " Max:" + deleteSizeMax);
-                    throw new InvalidPluginExecutionException("Minimum Size Cannot Be Greater Than Maximum Size");
-                }
-
-                EntityCollection attachments = GetAttachments(service, emailWithAttachments.Id);
-                if (attachments.Entities.Count == 0) return;
-
-                string[] filetypes = new string[0];
-                if (!string.IsNullOrEmpty(extensions))
-                    filetypes = extensions.Replace(".", string.Empty).Split(',');
-
-                StringBuilder notice = new StringBuilder();
-                int numberOfAttachmentsDeleted = 0;
-
-                bool delete = false;
-                foreach (Entity activityMineAttachment in attachments.Entities)
-                {
-                    delete = false;
-
-                    if (activityMineAttachment.GetAttributeValue<int>("filesize") >= deleteSizeMax)
-                        delete = true;
-
-                    if (activityMineAttachment.GetAttributeValue<int>("filesize") <= deleteSizeMin)
-                        delete = true;
-
-                    if (filetypes.Length > 0 && delete)
-                        delete = ExtensionMatch(filetypes, activityMineAttachment.GetAttributeValue<string>("filename"));
-
-                    if (!delete) continue;
-
-                    DeleteEmailAttachment(service, activityMineAttachment.Id);
-                    numberOfAttachmentsDeleted++;
-
-                    if (appendNotice)
-                        notice.AppendLine("Deleted Attachment: " + activityMineAttachment.GetAttributeValue<string>("filename") + " " +
-                                          DateTime.Now.ToShortDateString() + "\r\n");
-                }
-
-                if (delete && appendNotice && notice.Length > 0)
-                    UpdateEmail(service, emailWithAttachments.Id, notice.ToString());
-
-                NumberOfAttachmentsDeleted.Set(executionContext, numberOfAttachmentsDeleted);
+                localContext.TracingService.Trace("Exception: {0}", "Min:" + deleteSizeMin + " Max:" + deleteSizeMax);
+                throw new InvalidPluginExecutionException("Minimum Size Cannot Be Greater Than Maximum Size");
             }
-            catch (Exception ex)
+
+            EntityCollection attachments = GetAttachments(localContext.OrganizationService, emailWithAttachments.Id);
+            if (attachments.Entities.Count == 0) return;
+
+            string[] filetypes = new string[0];
+            if (!string.IsNullOrEmpty(extensions))
+                filetypes = extensions.Replace(".", string.Empty).Split(',');
+
+            StringBuilder notice = new StringBuilder();
+            int numberOfAttachmentsDeleted = 0;
+
+            bool delete = false;
+            foreach (Entity activityMineAttachment in attachments.Entities)
             {
-                tracer.Trace("Exception: {0}", ex.ToString());
+                delete = false;
+
+                if (activityMineAttachment.GetAttributeValue<int>("filesize") >= deleteSizeMax)
+                    delete = true;
+
+                if (activityMineAttachment.GetAttributeValue<int>("filesize") <= deleteSizeMin)
+                    delete = true;
+
+                if (filetypes.Length > 0 && delete)
+                    delete = ExtensionMatch(filetypes, activityMineAttachment.GetAttributeValue<string>("filename"));
+
+                if (!delete) continue;
+
+                DeleteEmailAttachment(localContext.OrganizationService, activityMineAttachment.Id);
+                numberOfAttachmentsDeleted++;
+
+                if (appendNotice)
+                    notice.AppendLine("Deleted Attachment: " + activityMineAttachment.GetAttributeValue<string>("filename") + " " +
+                                      DateTime.Now.ToShortDateString() + "\r\n");
             }
+
+            if (delete && appendNotice && notice.Length > 0)
+                UpdateEmail(localContext.OrganizationService, emailWithAttachments.Id, notice.ToString());
+
+            NumberOfAttachmentsDeleted.Set(context, numberOfAttachmentsDeleted);
         }
 
-        private EntityCollection GetAttachments(IOrganizationService service, Guid emailId)
+        private static EntityCollection GetAttachments(IOrganizationService service, Guid emailId)
         {
             QueryExpression query = new QueryExpression
             {
@@ -107,7 +104,7 @@ namespace LAT.WorkflowUtilities.Email
                 ColumnSet = new ColumnSet("filesize", "filename"),
                 Criteria = new FilterExpression
                 {
-                    Conditions = 
+                    Conditions =
                     {
                         new ConditionExpression
                         {
@@ -122,16 +119,18 @@ namespace LAT.WorkflowUtilities.Email
             return service.RetrieveMultiple(query);
         }
 
-        private void DeleteEmailAttachment(IOrganizationService service, Guid activitymimeattachmentId)
+        private static void DeleteEmailAttachment(IOrganizationService service, Guid activitymimeattachmentId)
         {
             service.Delete("activitymimeattachment", activitymimeattachmentId);
         }
 
-        private void UpdateEmail(IOrganizationService service, Guid emailId, string notice)
+        private static void UpdateEmail(IOrganizationService service, Guid emailId, string notice)
         {
-            Entity note = new Entity("annotation");
-            note["notetext"] = notice;
-            note["objectid"] = new EntityReference("email", emailId);
+            Entity note = new Entity("annotation")
+            {
+                ["notetext"] = notice,
+                ["objectid"] = new EntityReference("email", emailId)
+            };
 
             service.Create(note);
         }

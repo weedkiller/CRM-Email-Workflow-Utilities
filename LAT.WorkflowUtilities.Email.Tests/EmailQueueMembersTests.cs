@@ -1,716 +1,556 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Query;
-using Microsoft.Xrm.Sdk.Workflow;
-using Moq;
-using System;
-using System.Activities;
-using System.Collections.Generic;
+﻿using FakeXrmEasy;
+using FakeXrmEasy.FakeMessageExecutors;
 using Microsoft.Crm.Sdk.Messages;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Xrm.Sdk;
+using System;
+using System.Collections.Generic;
 
 namespace LAT.WorkflowUtilities.Email.Tests
 {
-	[TestClass]
-	public class EmailQueueMembersTests
-	{
-		#region Class Constructor
-		private readonly string _namespaceClassAssembly;
-		public EmailQueueMembersTests()
-		{
-			//[Namespace.class name, assembly name] for the class/assembly being tested
-			//Namespace and class name can be found on the class file being tested
-			//Assembly name can be found under the project properties on the Application tab
-			_namespaceClassAssembly = "LAT.WorkflowUtilities.Email.EmailQueueMembers" + ", " + "LAT.WorkflowUtilities.Email";
-		}
-		#endregion
-		#region Test Initialization and Cleanup
-		// Use ClassInitialize to run code before running the first test in the class
-		[ClassInitialize()]
-		public static void ClassInitialize(TestContext testContext) { }
-
-		// Use ClassCleanup to run code after all tests in a class have run
-		[ClassCleanup()]
-		public static void ClassCleanup() { }
-
-		// Use TestInitialize to run code before running each test 
-		[TestInitialize()]
-		public void TestMethodInitialize() { }
-
-		// Use TestCleanup to run code after each test has run
-		[TestCleanup()]
-		public void TestMethodCleanup() { }
-		#endregion
-
-		[TestMethod]
-		public void NoMembersWithoutOwnerOneExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 1;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, NoMembersWithoutOwnerOneExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> NoMembersWithoutOwnerOneExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			Entity activityParty = new Entity("activityparty") { Id = Guid.NewGuid() };
-			activityParty["partyid"] = new EntityReference("contact", Guid.NewGuid());
-			EntityCollection existingRecipients = new EntityCollection();
-			existingRecipients.Entities.Add(activityParty);
-
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void NoMembersWithoutOwnerNoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 0;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, NoMembersWithoutOwnerNoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> NoMembersWithoutOwnerNoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithoutOwnerNoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 1;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithoutOwnerNoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithoutOwnerNoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithoutOwnerTwoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 3;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithoutOwnerTwoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithoutOwnerTwoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity activityParty1 = new Entity("activityparty") { Id = Guid.NewGuid() };
-			activityParty1["partyid"] = new EntityReference("contact", Guid.NewGuid());	
-			existingRecipients.Entities.Add(activityParty1);
-			Entity activityParty2 = new Entity("activityparty") { Id = Guid.NewGuid() };
-			activityParty2["partyid"] = new EntityReference("contact", Guid.NewGuid());
-			existingRecipients.Entities.Add(activityParty2);
-
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithoutOwnerOneExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 2;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithoutOwnerOneExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithoutOwnerOneExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity activityParty = new Entity("activityparty") { Id = Guid.NewGuid() };
-			activityParty["partyid"] = new EntityReference("contact", Guid.NewGuid());
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-			existingRecipients.Entities.Add(activityParty);
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void TwoMembersWithoutOwnerNoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 2;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, TwoMembersWithoutOwnerNoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> TwoMembersWithoutOwnerNoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-			Entity user2 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user2);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithOwnerDifferentNoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", true},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 2;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithOwnerDifferentNoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithOwnerDifferentNoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			Entity queue = new Entity("queue");
-			queue.Attributes["ownerid"] = new EntityReference("systemuser", Guid.NewGuid());
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email, queue);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithOwnerSameNoExisting()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", true},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 1;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithOwnerSameNoExistingSetup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithOwnerSameNoExistingSetup(Mock<IOrganizationService> serviceMock)
-		{
-			Guid sameId = Guid.NewGuid();
-
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			Entity queue = new Entity("queue");
-			queue.Attributes["ownerid"] = new EntityReference("systemuser", sameId);
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email, queue);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = sameId };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "8.1.0.512" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithoutOwnerNoExisting2011()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", false},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 1;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithoutOwnerNoExisting2011Setup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithoutOwnerNoExisting2011Setup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			Entity queue = new Entity("queue");
-			queue.Attributes["ownerid"] = new EntityReference("systemuser", Guid.NewGuid());
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email, queue);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "5.0.9690.4376" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}
-
-		[TestMethod]
-		public void OneMemberWithOwnerNoExisting2011()
-		{
-			//Target
-			Entity targetEntity = null;
-
-			//Input parameters
-			var inputs = new Dictionary<string, object>
-			{
-				{ "EmailToSend", new EntityReference("email", Guid.NewGuid()) },
-				{ "RecipientQueue", new EntityReference("queue", Guid.NewGuid()) },
-				{ "IncludeOwner", true},
-				{ "SendEmail", false }
-			};
-
-			//Expected value(s)
-			const int expected = 1;
-
-			//Invoke the workflow
-			var output = InvokeWorkflow(_namespaceClassAssembly, ref targetEntity, inputs, OneMemberWithOwnerNoExisting2011Setup);
-
-			//Test(s)
-			Assert.AreEqual(expected, output["UsersAdded"]);
-		}
-
-		/// <summary>
-		/// Modify to mock CRM Organization Service actions
-		/// </summary>
-		/// <param name="serviceMock">The Organization Service to mock</param>
-		/// <returns>Configured Organization Service</returns>
-		private static Mock<IOrganizationService> OneMemberWithOwnerNoExisting2011Setup(Mock<IOrganizationService> serviceMock)
-		{
-			EntityCollection existingRecipients = new EntityCollection();
-			Entity email = new Entity("email") { Id = Guid.NewGuid() };
-			email["to"] = existingRecipients;
-
-			Entity queue = new Entity("queue");
-			queue.Attributes["ownerid"] = new EntityReference("systemuser", Guid.NewGuid());
-
-			serviceMock.Setup(t =>
-				t.Retrieve(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<ColumnSet>()))
-				.ReturnsInOrder(email, queue);
-
-			EntityCollection queueMembers = new EntityCollection();
-			Entity user1 = new Entity("systemuser") { Id = Guid.NewGuid() };
-			queueMembers.Entities.Add(user1);
-
-			serviceMock.Setup(t =>
-				t.RetrieveMultiple(It.IsAny<QueryExpression>()))
-				.ReturnsInOrder(queueMembers);
-
-			OrganizationResponse version = new OrganizationResponse();
-			ParameterCollection results = new ParameterCollection { { "Version", "5.0.9690.4376" } };
-			version.Results = results;
-
-			serviceMock.Setup(t =>
-				t.Execute(It.IsAny<OrganizationRequest>()))
-				.ReturnsInOrder(version);
-
-			return serviceMock;
-		}	
-
-		/// <summary>
-		/// Invokes the workflow.
-		/// </summary>
-		/// <param name="name">Namespace.Class, Assembly</param>
-		/// <param name="target">The target entity</param>
-		/// <param name="inputs">The workflow input parameters</param>
-		/// <param name="configuredServiceMock">The function to configure the Organization Service</param>
-		/// <returns>The workflow output parameters</returns>
-		private static IDictionary<string, object> InvokeWorkflow(string name, ref Entity target, Dictionary<string, object> inputs,
-			Func<Mock<IOrganizationService>, Mock<IOrganizationService>> configuredServiceMock)
-		{
-			var testClass = Activator.CreateInstance(Type.GetType(name)) as CodeActivity;
-
-			var serviceMock = new Mock<IOrganizationService>();
-			var factoryMock = new Mock<IOrganizationServiceFactory>();
-			var tracingServiceMock = new Mock<ITracingService>();
-			var workflowContextMock = new Mock<IWorkflowContext>();
-
-			//Apply configured Organization Service Mock
-			if (configuredServiceMock != null)
-				serviceMock = configuredServiceMock(serviceMock);
-
-			IOrganizationService service = serviceMock.Object;
-
-			//Mock workflow Context
-			var workflowUserId = Guid.NewGuid();
-			var workflowCorrelationId = Guid.NewGuid();
-			var workflowInitiatingUserId = Guid.NewGuid();
-
-			//Workflow Context Mock
-			workflowContextMock.Setup(t => t.InitiatingUserId).Returns(workflowInitiatingUserId);
-			workflowContextMock.Setup(t => t.CorrelationId).Returns(workflowCorrelationId);
-			workflowContextMock.Setup(t => t.UserId).Returns(workflowUserId);
-			var workflowContext = workflowContextMock.Object;
-
-			//Organization Service Factory Mock
-			factoryMock.Setup(t => t.CreateOrganizationService(It.IsAny<Guid>())).Returns(service);
-			var factory = factoryMock.Object;
-
-			//Tracing Service - Content written appears in output
-			tracingServiceMock.Setup(t => t.Trace(It.IsAny<string>(), It.IsAny<object[]>())).Callback<string, object[]>(MoqExtensions.WriteTrace);
-			var tracingService = tracingServiceMock.Object;
-
-			//Parameter Collection
-			ParameterCollection inputParameters = new ParameterCollection { { "Target", target } };
-			workflowContextMock.Setup(t => t.InputParameters).Returns(inputParameters);
-
-			//Workflow Invoker
-			var invoker = new WorkflowInvoker(testClass);
-			invoker.Extensions.Add(() => tracingService);
-			invoker.Extensions.Add(() => workflowContext);
-			invoker.Extensions.Add(() => factory);
-
-			return invoker.Invoke(inputs);
-		}
-	}
+    [TestClass]
+    public class EmailQueueMembersTests
+    {
+        #region Test Initialization and Cleanup
+        // Use ClassInitialize to run code before running the first test in the class
+        [ClassInitialize()]
+        public static void ClassInitialize(TestContext testContext) { }
+
+        // Use ClassCleanup to run code after all tests in a class have run
+        [ClassCleanup()]
+        public static void ClassCleanup() { }
+
+        // Use TestInitialize to run code before running each test 
+        [TestInitialize()]
+        public void TestMethodInitialize() { }
+
+        // Use TestCleanup to run code after each test has run
+        [TestCleanup()]
+        public void TestMethodCleanup() { }
+        #endregion
+
+        [TestMethod]
+        public void EmailQueueMembers_No_Members_Without_Owner_1_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity activityParty = new Entity("activityparty")
+            {
+                Id = id2,
+                ["activitypartyid"] = id2,
+                ["activityid"] = email.ToEntityReference(),
+                ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
+                ["participationtypemask"] = new OptionSetValue(2)
+            };
+
+            EntityCollection to = new EntityCollection();
+            to.Entities.Add(activityParty);
+            email["to"] = to;
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, activityParty, queue });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_No_Members_Without_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 0;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_1_Member_Without_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser, queueMembership });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_1_Member_Without_Owner_2_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Guid idAp1 = Guid.NewGuid();
+            Entity activityParty1 = new Entity("activityparty")
+            {
+                Id = idAp1,
+                ["activitypartyid"] = idAp1,
+                ["activityid"] = new EntityReference("email", id),
+                ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
+                ["participationtypemask"] = new OptionSetValue(2)
+            };
+
+            Guid idAp2 = Guid.NewGuid();
+            Entity activityParty2 = new Entity("activityparty")
+            {
+                Id = idAp2,
+                ["activitypartyid"] = idAp2,
+                ["activityid"] = new EntityReference("email", id),
+                ["partyid"] = new EntityReference("contact", Guid.NewGuid()),
+                ["participationtypemask"] = new OptionSetValue(2)
+            };
+
+            EntityCollection to = new EntityCollection();
+            to.Entities.Add(activityParty1);
+            to.Entities.Add(activityParty2);
+            email["to"] = to;
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser, queueMembership, activityParty1, activityParty2 });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 3;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_2_Members_Without_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership1 = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser1.Id,
+                ["queueid"] = queue.Id
+            };
+
+            Guid id3 = Guid.NewGuid();
+            Entity queueMembership2 = new Entity("queuemembership")
+            {
+                Id = id3,
+                ["queuemembership"] = id3,
+                ["systemuserid"] = systemUser2.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser1, systemUser2, queueMembership1, queueMembership2 });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 2;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_2_Members_1_Disabled_Without_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser1 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Entity systemUser2 = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = true
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership1 = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser1.Id,
+                ["queueid"] = queue.Id
+            };
+
+            Guid id3 = Guid.NewGuid();
+            Entity queueMembership2 = new Entity("queuemembership")
+            {
+                Id = id3,
+                ["queuemembership"] = id3,
+                ["systemuserid"] = systemUser2.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser1, systemUser2, queueMembership1, queueMembership2 });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_1_Member_With_Same_Owner_0_Existing()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity systemUser = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = systemUser.ToEntityReference()
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser, queueMembership });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(false);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        [TestMethod]
+        public void EmailQueueMembers_1_Member_Without_Owner_0_Existing_2011()
+        {
+            //Arrange
+            XrmFakedWorkflowContext workflowContext = new XrmFakedWorkflowContext();
+
+            Guid id = Guid.NewGuid();
+            Entity email = new Entity("email")
+            {
+                Id = id,
+                ["activityid"] = id,
+                ["to"] = new EntityCollection()
+            };
+
+            Entity queue = new Entity("queue")
+            {
+                Id = Guid.NewGuid(),
+                ["ownerid"] = new EntityReference("systemuser", Guid.NewGuid())
+            };
+
+            Entity systemUser = new Entity("systemuser")
+            {
+                Id = Guid.NewGuid(),
+                ["isdisabled"] = false
+            };
+
+            Guid id2 = Guid.NewGuid();
+            Entity queueMembership = new Entity("queuemembership")
+            {
+                Id = id2,
+                ["queuemembership"] = id2,
+                ["systemuserid"] = systemUser.Id,
+                ["queueid"] = queue.Id
+            };
+
+            var inputs = new Dictionary<string, object>
+            {
+                { "EmailToSend", email.ToEntityReference() },
+                { "RecipientQueue", queue.ToEntityReference() },
+                { "IncludeOwner", false},
+                { "SendEmail", false }
+            };
+
+            XrmFakedContext xrmFakedContext = new XrmFakedContext();
+            xrmFakedContext.Initialize(new List<Entity> { email, queue, systemUser, queueMembership });
+            var fakeRetrieveVersionRequestExecutor = new FakeRetrieveVersionRequestExecutor(true);
+            xrmFakedContext.AddFakeMessageExecutor<RetrieveVersionRequest>(fakeRetrieveVersionRequestExecutor);
+
+            const int expected = 1;
+
+            //Act
+            var result = xrmFakedContext.ExecuteCodeActivity<EmailQueueMembers>(workflowContext, inputs);
+
+            //Assert
+            Assert.AreEqual(expected, result["UsersAdded"]);
+        }
+
+        private class FakeRetrieveVersionRequestExecutor : IFakeMessageExecutor
+        {
+            private readonly string _version;
+            public FakeRetrieveVersionRequestExecutor(bool is2011)
+            {
+                _version = is2011 ? "5.0.9690.4376" : "8.1.0.512";
+            }
+
+            public bool CanExecute(OrganizationRequest request)
+            {
+                return request is RetrieveVersionRequest;
+            }
+
+            public Type GetResponsibleRequestType()
+            {
+                return typeof(RetrieveVersionRequest);
+            }
+
+            public OrganizationResponse Execute(OrganizationRequest request, XrmFakedContext ctx)
+            {
+                OrganizationResponse response = new OrganizationResponse
+                {
+                    ResponseName = "RetrieveVersionRequest",
+                    Results = new ParameterCollection { { "Version", _version } }
+                };
+
+                return response;
+            }
+        }
+    }
 }

@@ -3,45 +3,42 @@ using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Sdk.Workflow;
 using System;
 using System.Activities;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace LAT.WorkflowUtilities.Email
 {
-    public class CheckAttachments : CodeActivity
+    public class CheckAttachments : WorkFlowActivityBase
     {
+        public CheckAttachments() : base(typeof(CheckAttachments)) { }
+
         [RequiredArgument]
         [Input("Email To Check")]
         [ReferenceTarget("email")]
         public InArgument<EntityReference> EmailToCheck { get; set; }
 
-        [OutputAttribute("Has Attachments")]
+        [Output("Has Attachments")]
         public OutArgument<bool> HasAttachments { get; set; }
 
-        [OutputAttribute("Attachment Count")]
+        [Output("Attachment Count")]
         public OutArgument<int> AttachmentCount { get; set; }
 
-        protected override void Execute(CodeActivityContext executionContext)
+        protected override void ExecuteCrmWorkFlowActivity(CodeActivityContext context, LocalWorkflowContext localContext)
         {
-            ITracingService tracer = executionContext.GetExtension<ITracingService>();
-            IWorkflowContext context = executionContext.GetExtension<IWorkflowContext>();
-            IOrganizationServiceFactory serviceFactory = executionContext.GetExtension<IOrganizationServiceFactory>();
-            IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (localContext == null)
+                throw new ArgumentNullException(nameof(localContext));
 
-            try
-            {
-                EntityReference emailToCheck = EmailToCheck.Get(executionContext);
+            EntityReference emailToCheck = EmailToCheck.Get(context);
 
-                int count = GetAttachmentCount(service, emailToCheck.Id);
+            int count = GetAttachmentCount(localContext.OrganizationService, emailToCheck.Id);
 
-                AttachmentCount.Set(executionContext, count);
-                HasAttachments.Set(executionContext, count > 0);
-            }
-            catch (Exception ex)
-            {
-                tracer.Trace("Exception: {0}", ex.ToString());
-            }
+            AttachmentCount.Set(context, count);
+            HasAttachments.Set(context, count > 0);
         }
 
-        private int GetAttachmentCount(IOrganizationService service, Guid emailId)
+        private static int GetAttachmentCount(IOrganizationService service, Guid emailId)
         {
             FetchExpression query = new FetchExpression(@"<fetch aggregate='true' >
                                                             <entity name='email' >
